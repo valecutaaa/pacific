@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pacific - Calculadora de Precios</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f2f5;
+    }
+    h1 {
+      color: #333;
+    }
+    .producto {
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      position: relative;
+    }
+    input[type="text"],
+    input[type="number"] {
+      padding: 6px;
+      margin: 5px;
+      width: 140px;
+    }
+    input[readonly] {
+      background-color: #eaeaea;
+    }
+    button {
+      margin-top: 10px;
+      margin-right: 10px;
+      padding: 10px 15px;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      font-size: 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .btnEliminar {
+      background-color: red;
+      font-size: 12px;
+      padding: 5px 8px;
+    }
+    .btnEditar {
+      background-color: orange;
+      font-size: 12px;
+      padding: 5px 8px;
+      margin-left: 5px;
+    }
+    #resultado {
+      font-size: 18px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    #moneda-label {
+      margin-right: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Pacific - Calculadora de Precios</h1>
+
+  <div style="margin-bottom: 10px;">
+    <span id="moneda-label">Moneda:</span>
+    <select id="moneda" onchange="guardarYCalcular()">
+      <option value="USD" selected>Dólares (USD)</option>
+      <option value="PEN">Soles (PEN)</option>
+    </select>
+  </div>
+
+  <div id="productos"></div>
+
+  <button onclick="agregarProducto()">➕ Agregar Producto</button>
+  <button onclick="guardarYCalcular()">🧮 Calcular Total</button>
+  <input type="number" id="descuentoPersonalizado" placeholder="Descuento" style="width:100px; margin-right:5px;" oninput="guardarYCalcular()">
+  <button onclick="aplicarDescuento()">🔻 Aplicar Descuento</button>
+  <button onclick="reiniciarTodo()">♻️ Reiniciar Todo</button>
+
+  <div id="resultado">Total a pagar: $0.00</div>
+
+  <script>
+    let contador = 0;
+    let descuentoManual = 0;
+
+    function agregarProducto(nombre = "", precio = "", cantidad = "", bloqueado = false) {
+      const contenedor = document.getElementById("productos");
+      const div = document.createElement("div");
+      div.className = "producto";
+      div.id = `producto${contador}`;
+      div.innerHTML = `
+        <input type="text" placeholder="Nombre del producto" id="nombre${contador}" value="${nombre}" ${bloqueado ? 'readonly' : ''} onblur="bloquearCampos(${contador})" />
+        <input type="number" placeholder="Precio" id="precio${contador}" value="${precio}" step="0.01" ${bloqueado ? 'readonly' : ''} onblur="bloquearCampos(${contador})" />
+        <input type="number" placeholder="Cantidad" id="cantidad${contador}" value="${cantidad}" oninput="guardarYCalcular()" />
+        <button class="btnEliminar" onclick="eliminarProducto(${contador})">❌</button>
+        <button class="btnEditar" onclick="editarProducto(${contador})">✏️ Editar</button>
+      `;
+      contenedor.appendChild(div);
+      contador++;
+      guardarDatos();
+    }
+
+    function bloquearCampos(id) {
+      const nombre = document.getElementById(`nombre${id}`);
+      const precio = document.getElementById(`precio${id}`);
+      if (nombre.value !== "" && precio.value !== "") {
+        nombre.readOnly = true;
+        precio.readOnly = true;
+      }
+      guardarDatos();
+    }
+
+    function editarProducto(id) {
+      document.getElementById(`nombre${id}`).readOnly = false;
+      document.getElementById(`precio${id}`).readOnly = false;
+    }
+
+    function eliminarProducto(id) {
+      const producto = document.getElementById(`producto${id}`);
+      if (producto) producto.remove();
+      guardarDatos();
+    }
+
+    function aplicarDescuento() {
+      const valor = parseFloat(document.getElementById("descuentoPersonalizado").value) || 0;
+      descuentoManual += valor;
+      document.getElementById("descuentoPersonalizado").value = "";
+      guardarYCalcular();
+    }
+
+    function guardarYCalcular() {
+      guardarDatos();
+      calcularTotal();
+    }
+
+    function calcularTotal() {
+      let total = 0;
+      for (let i = 0; i < contador; i++) {
+        const precio = document.getElementById(`precio${i}`);
+        const cantidad = document.getElementById(`cantidad${i}`);
+        if (precio && cantidad) {
+          total += (parseFloat(precio.value) || 0) * (parseFloat(cantidad.value) || 0);
+        }
+      }
+      total -= descuentoManual;
+      if (total < 0) total = 0;
+
+      const moneda = document.getElementById("moneda").value;
+      const simbolo = moneda === "USD" ? "$" : "S/";
+      document.getElementById("resultado").innerText = `Total a pagar: ${simbolo}${total.toFixed(2)}`;
+    }
+
+    function guardarDatos() {
+      const productos = [];
+      for (let i = 0; i < contador; i++) {
+        const nombre = document.getElementById(`nombre${i}`);
+        const precio = document.getElementById(`precio${i}`);
+        const cantidad = document.getElementById(`cantidad${i}`);
+        if (nombre && precio && cantidad) {
+          productos.push({
+            nombre: nombre.value,
+            precio: precio.value,
+            cantidad: cantidad.value,
+            bloqueado: nombre.readOnly
+          });
+        }
+      }
+      const datos = {
+        productos,
+        descuento: descuentoManual,
+        moneda: document.getElementById("moneda").value
+      };
+      localStorage.setItem("calculadoraDatos", JSON.stringify(datos));
+    }
+
+    function cargarDatos() {
+      const datosGuardados = JSON.parse(localStorage.getItem("calculadoraDatos"));
+      if (datosGuardados) {
+        const { productos, descuento, moneda } = datosGuardados;
+        productos.forEach(p => {
+          agregarProducto(p.nombre, p.precio, p.cantidad, p.bloqueado);
+        });
+        descuentoManual = descuento || 0;
+        document.getElementById("moneda").value = moneda || "USD";
+        calcularTotal();
+      } else {
+        // Si no hay datos guardados, precargar productos iniciales
+        agregarProducto("Chilaquiles", 35, 1, true);
+        agregarProducto("Limonada", 40, 1, true);
+        calcularTotal();
+      }
+    }
+
+    function reiniciarTodo() {
+      document.getElementById("productos").innerHTML = "";
+      document.getElementById("descuentoPersonalizado").value = "";
+      localStorage.removeItem("calculadoraDatos");
+      contador = 0;
+      descuentoManual = 0;
+      calcularTotal();
+    }
+
+    window.onload = cargarDatos;
+  </script>
+
+</body>
+</html>
